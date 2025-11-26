@@ -1,1 +1,1 @@
-# Infrastructure-as-a-code
+terraform apply --auto-approve
