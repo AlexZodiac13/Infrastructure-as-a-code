@@ -13,3 +13,17 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Go specific and test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor
+Godeps
+
+# Terratest local data
+.test-data/
+
