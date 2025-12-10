@@ -1,10 +1,13 @@
 package test
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,13 +15,13 @@ import (
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	test_structure "github.com/gruntwork-io/terratest/modules/test-structure"
 	"golang.org/x/crypto/ssh"
-	_ "github.com/go-sql-driver/mysql"
+	mysql_driver "github.com/go-sql-driver/mysql"
 )
 
 var folder = flag.String("folder", "", "Folder ID in Yandex.Cloud")
 var sshKeyPath = flag.String("ssh-key-pass", "", "Private ssh key for access to virtual machines")
 var sshUser = flag.String("ssh-user", "zodiac", "SSH user for VM")
-var skipDBCheck = flag.Bool("skip-db-check", true, "Skip DB connectivity check if true")
+var skipDBCheck = flag.Bool("skip-db-check", false, "Skip DB connectivity check if true")
 var createNetwork = flag.Bool("create-network", true, "Create a new VPC network")
 var networkID = flag.String("network-id", "", "Existing network id to reuse if create-network is false")
 
@@ -136,8 +139,13 @@ func TestEndToEndDeploymentScenario(t *testing.T) {
 				t.Fatalf("No DB hosts found in outputs")
 			}
 
-			// Попробуем подключиться к первому хосту
-			dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?charset=utf8mb4&parseTime=true", dbUser, dbPassword, dbHosts[0], dbName)
+			// register TLS config to satisfy require_secure_transport=ON
+			mysql_driver.RegisterTLSConfig("custom", &tls.Config{
+				InsecureSkipVerify: true,
+			})
+
+			// Попробуем подключиться к первому хосту по TLS
+			dsn := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?charset=utf8mb4&parseTime=true&tls=custom", dbUser, dbPassword, dbHosts[0], dbName)
 			db, err := sql.Open("mysql", dsn)
 			if err != nil {
 				t.Fatalf("Unable to open DB connection: %v", err)
@@ -145,8 +153,20 @@ func TestEndToEndDeploymentScenario(t *testing.T) {
 			defer db.Close()
 
 			db.SetConnMaxLifetime(time.Second * 10)
+			// Здесь — если Ping успешен, тест продолжится; иначе упадёт с ошибкой
 			if err := db.Ping(); err != nil {
 				t.Fatalf("Cannot ping DB: %v", err)
+			}
+		}
+
+		successPath := filepath.Join(fixtureFolder, ".test-data", "validate_success")
+		if err := os.MkdirAll(filepath.Dir(successPath), 0o755); err != nil {
+			t.Logf("Warning: cannot create .test-data folder: %v", err)
+		} else {
+			if err := os.WriteFile(successPath, []byte(time.Now().Format(time.RFC3339)), 0o644); err != nil {
+				t.Logf("Warning: cannot write validate_success file: %v", err)
+			} else {
+				t.Logf("Validation marker written to %s", successPath)
 			}
 		}
 	})
