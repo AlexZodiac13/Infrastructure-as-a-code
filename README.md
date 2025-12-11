@@ -1,4 +1,4 @@
-Локальная проверка (terraform)
+Terraform
 
 1) Перейдите в корень проекта
    cd d:\mygit\Infrastructure-as-a-code
@@ -52,3 +52,21 @@
   - SKIP_setup=true — пропустить создание инфраструктуры
   - SKIP_validate=true — пропустить валидацию
   - SKIP_teardown=true — пропустить удаление инфраструктуры
+ 
+Ansible deployment
+
+1) Скопируйте IP-адреса из terraform outputs в inventory (`environments/prod/inventory`) или замените переменные:
+   app ansible_host=<VM1_PUBLIC_IP>
+   app2 ansible_host=<VM2_PUBLIC_IP>
+
+5) Установите FQDN базы в `environments/prod/group_vars/wp_app` (wordpress_db_host) и остальные переменные.
+
+6) wget "https://storage.yandexcloud.net/cloud-certs/CA.pem" -O ./files/root.crt
+
+7) Run the playbook:
+   cd ansible
+   
+   Путь к ansible.cfg, на чистом linux указывать не надо, но мне приходится из-за wsl. Можно перенести в линуксовые директории, тогда сработает
+   export ANSIBLE_CONFIG=/mnt/d/mygit/Infrastructure-as-a-code/ansible/ansible.cfg
+
+   ansible-playbook playbooks/install.yml

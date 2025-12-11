@@ -28,7 +28,7 @@ var networkID = flag.String("network-id", "", "Existing network id to reuse if c
 var fallbackUsers = []string{"ubuntu", "yandex", "root"}
 
 func TestEndToEndDeploymentScenario(t *testing.T) {
-	fixtureFolder := "../"
+	fixtureFolder := "../terraform/"
 
 	test_structure.RunTestStage(t, "setup", func() {
 		terraformOptions := &terraform.Options{
