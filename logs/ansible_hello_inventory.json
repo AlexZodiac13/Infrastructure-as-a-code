@@ -1,0 +1,33 @@
+[WARNING]: Found both group and host with same name: world
+[WARNING]: Found both group and host with same name: hello
+{
+    "_meta": {
+        "hostvars": {
+            "hello": {
+                "ansible_connection": "local",
+                "ansible_host": "127.0.0.1"
+            },
+            "world": {
+                "ansible_connection": "local",
+                "ansible_host": "127.0.0.1"
+            }
+        }
+    },
+    "all": {
+        "children": [
+            "ungrouped",
+            "hello",
+            "world"
+        ]
+    },
+    "hello": {
+        "hosts": [
+            "hello"
+        ]
+    },
+    "world": {
+        "hosts": [
+            "world"
+        ]
+    }
+}

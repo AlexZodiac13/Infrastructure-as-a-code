@@ -1,0 +1,14 @@
+plugin: yacloud_compute
+
+# Используйте OAuth-токен (не храните в публичных репозиториях)
+# yacloud_token: "<ваш OAuth-токен>"
+
+# БЕЗОПАСНЫЙ ВАРИАНТ — использовать IAM-token через переменную окружения:
+# yacloud_iam_token: "$YC_TOKEN"
+
+# Пример полей (адаптируйте под ваше облако):
+# yacloud_clouds:
+# - <имя вашего облака>
+# yacloud_folders:
+# - <имя каталога с помеченными виртуальными машинами>
+# yacloud_group_label: group
