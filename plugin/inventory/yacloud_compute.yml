@@ -1,14 +1,30 @@
 plugin: yacloud_compute
 
-# Используйте OAuth-токен (не храните в публичных репозиториях)
-# yacloud_token: "<ваш OAuth-токен>"
+# Use IAM token via env var (recommended): set YC_TOKEN in your shell
+# Do NOT hardcode tokens in this file or commit them to git.
 
-# БЕЗОПАСНЫЙ ВАРИАНТ — использовать IAM-token через переменную окружения:
-# yacloud_iam_token: "$YC_TOKEN"
+yacloud_iam_token: "$YC_TOKEN"
 
-# Пример полей (адаптируйте под ваше облако):
-# yacloud_clouds:
-# - <имя вашего облака>
-# yacloud_folders:
-# - <имя каталога с помеченными виртуальными машинами>
-# yacloud_group_label: group
+# Cloud and folder IDs provided for this run (do not contain secret token)
+# Replace or add additional clouds/folders as needed.
+
+yacloud_clouds:
+  - cloud-zodiac1993
+
+yacloud_folders:
+  - mlops
+
+# Optional: filter label for grouping instances
+yacloud_group_label: group
+
+# Optional: prefer specific zone (used for display/filters by some plugins)
+yacloud_zone: ru-central1-a
+
+# Optional: filter by network id (if you want to only pick instances in a network)
+# yacloud_network_id: airflow-network-id
+
+# Use a token via token file or variable. For security prefer token file or env var.
+# (The plugin expects 'yacloud_token' or 'yacloud_token_file')
+# Uncomment one of the lines below:
+# yacloud_token: "$YC_TOKEN"
+yacloud_token_file: "/tmp/yc_token_file"

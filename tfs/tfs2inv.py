@@ -1,95 +1,59 @@
 #!/usr/bin/env python3
-"""Простой скрипт: terraform state -> ansible dynamic inventory
-
-Поддерживает 2 варианта:
- - если в корне state есть outputs.instances.value = { host: {ip:.., labels:{group:..}} }
- - иначе пытается пройти по resources и найти атрибуты с IP и метками
-
-Этот скрипт предназначен как пример и может потребовать адаптации под конкретный провайдер/манифест.
+"""
+Простой конвертер terraform.tfstate -> Ansible dynamic inventory (JSON).
+Ищет ресурсы с "yandex_compute_instance" и метку group="wp_app".
 """
 import json
 import os
-import re
+import sys
 
-STATE_FILE = os.path.join(os.path.dirname(__file__), 'terraform.tfstate')
-GROUP_LABEL = 'group'
-TARGET_GROUP = 'wp_app'
+STATE_PATH = os.environ.get('TF_STATE', 'terraform.tfstate')
 
-ip_re = re.compile(r"\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b")
+try:
+    with open(STATE_PATH) as f:
+        state = json.load(f)
+except Exception as e:
+    print(json.dumps({}))
+    sys.exit(0)
 
+hosts = []
+hostvars = {}
 
-def load_state(path):
-    if not os.path.exists(path):
-        print(json.dumps({}))
-        return None
-    with open(path, 'r') as f:
-        return json.load(f)
+for module in state.get('resources', []):
+    # Terraform <= 0.11 format may differ; also consider top-level resources
+    if module.get('type') == 'yandex_compute_instance':
+        for inst in module.get('instances', []):
+            attrs = inst.get('attributes', {})
+            labels = attrs.get('labels') or {}
+            label_group = attrs.get('labels.group') or labels.get('group')
+            if label_group != 'wp_app':
+                continue
+            name = attrs.get('name') or attrs.get('id') or attrs.get('network_interface.0.nat_ip') or attrs.get('network_interface.0.ip_address') or attrs.get('hostname')
+            # try multiple attribute candidates for IP
+            ip = None
+            # common modern shape: network_interface.0.nat_ip or network_interface.0.address
+            for k in ('network_interface.0.nat_ip', 'network_interface.0.ip_address', 'network_interface.0.address'):
+                if k in attrs:
+                    ip = attrs[k]
+                    break
+            # fallback: try nested 'network_interface' list
+            if not ip and 'network_interface' in attrs:
+                ni = attrs['network_interface']
+                if isinstance(ni, list) and ni:
+                    ip = ni[0].get('nat_ip') or ni[0].get('ip_address') or ni[0].get('address')
+            if not name:
+                name = attrs.get('platform_id') or attrs.get('id')
+            if not ip:
+                ip = attrs.get('metadata', {}).get('private_ip') or '127.0.0.1'
+            hosts.append(name)
+            conn = 'local' if ip in ('127.0.0.1', 'localhost') else 'ssh'
+            hostvars[name] = {
+                'ansible_host': ip,
+                'ansible_connection': conn,
+                'ansible_user': 'ubuntu',
+                'ansible_private_key_file': '/home/zodiac/.ssh/otus',
+                'ansible_python_interpreter': '/usr/bin/python3.8'
+            }
 
-
-def from_outputs(state):
-    outs = state.get('outputs', {})
-    inst = outs.get('instances', {}).get('value')
-    if not isinstance(inst, dict):
-        return None
-
-    hosts = {}
-    for name, info in inst.items():
-        labels = info.get('labels', {}) if isinstance(info, dict) else {}
-        if labels.get(GROUP_LABEL) == TARGET_GROUP:
-            ip = info.get('ip') or info.get('ansible_host')
-            if ip:
-                conn = 'local' if str(ip).startswith('127.') else 'ssh'
-                hosts[name] = {'ansible_host': ip, 'ansible_connection': conn}
-    return hosts
-
-def scan_resources(state):
-    hosts = {}
-    resources = state.get('resources', [])
-    for res in resources:
-        instances = res.get('instances', [])
-        for inst in instances:
-            attrs = inst.get('attributes', {}) or {}
-            # try to find labels
-            labels = {}
-            for k, v in attrs.items():
-                if k.endswith('.labels') or k.endswith('.labels.%'):
-                    # not ideal — provider-specific
-                    pass
-                if isinstance(v, dict) and v.get(GROUP_LABEL):
-                    labels = v
-            # generic search for group label
-            for k, v in attrs.items():
-                if isinstance(v, str) and v == TARGET_GROUP:
-                    labels = {GROUP_LABEL: v}
-            if labels.get(GROUP_LABEL) == TARGET_GROUP:
-                # try to find an IP inside attributes
-                found_ip = None
-                for v in attrs.values():
-                    if isinstance(v, str):
-                        m = ip_re.search(v)
-                        if m:
-                            found_ip = m.group(0)
-                            break
-                    elif isinstance(v, list):
-                        for item in v:
-                            if isinstance(item, str):
-                                m = ip_re.search(item)
-                                if m:
-                                    found_ip = m.group(0)
-                                    break
-                name = attrs.get('name') or attrs.get('id') or res.get('name')
-                if name and found_ip:
-                    conn = 'local' if str(found_ip).startswith('127.') else 'ssh'
-                    hosts[name] = {'ansible_host': found_ip, 'ansible_connection': conn}
-    return hosts
-
-
-if __name__ == '__main__':
-    state = load_state(STATE_FILE)
-    if state is None:
-        exit(0)
-
-    hosts = from_outputs(state) or scan_resources(state) or {}
-
-    inv = {TARGET_GROUP: {'hosts': list(hosts.keys())}, '_meta': {'hostvars': hosts}}
-    print(json.dumps(inv))
+inventory = {"_meta": {"hostvars": hostvars}, "wp_app": hosts}
+print(json.dumps(inventory))

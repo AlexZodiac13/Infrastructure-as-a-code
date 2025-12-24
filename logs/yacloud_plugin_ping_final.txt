@@ -1,0 +1,5 @@
+[WARNING]: Deprecation warnings can be disabled by setting `deprecation_warnings=False` in ansible.cfg.
+[DEPRECATION WARNING]: The '-o' argument is deprecated. This feature will be removed from ansible-core version 2.23. Use callback configuration to enable the oneline callback instead.
+[DEPRECATION WARNING]: The oneline callback plugin is deprecated. This feature will be removed from ansible-core version 2.23.
+wp-app-1 | SUCCESS => {"ansible_facts": {"discovered_interpreter_python": "/usr/local/bin/python3.8"},"changed": false,"ping": "pong"}
+wp-app-2 | SUCCESS => {"ansible_facts": {"discovered_interpreter_python": "/usr/bin/python3.8"},"changed": false,"ping": "pong"}

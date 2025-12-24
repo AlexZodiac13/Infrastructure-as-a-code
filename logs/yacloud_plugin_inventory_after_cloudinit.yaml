@@ -1,0 +1,8 @@
+all:
+  children:
+    wp_app:
+      hosts:
+        wp-app-1:
+          ansible_host: 51.250.2.138
+        wp-app-2:
+          ansible_host: 158.160.94.128

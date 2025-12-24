@@ -1,0 +1,34 @@
+### hello.py outputs
+./hello.py --host hello
+{"ansible_host": "127.0.0.1", "ansible_connection": "local"}
+
+./hello.py --host world
+{"ansible_host": "127.0.0.1", "ansible_connection": "local"}
+
+./hello.py --list
+{..."hello": ["hello"], "world": ["world"], "all": ["hello", "world"]}
+
+### ansible-inventory (hello)
+ansible-inventory -i hello/hello.py --host hello
+{ "ansible_connection": "local", "ansible_host": "127.0.0.1" }
+
+ansible-inventory -i hello/hello.py --list -y
+(see README fragment)
+
+### ansible ping (hello)
+ansible -i hello/hello.py -m ping all
+hello | SUCCESS => {"ping": "pong"}
+world | SUCCESS => {"ping": "pong"}
+
+### tfs2inv outputs
+TF_STATE=tfs/terraform.tfstate python3 tfs/tfs2inv.py
+{"_meta": {"hostvars": {"wp-app-1": {"ansible_host": "127.0.0.1", "ansible_connection": "local"}, "wp-app-2": {...}}}, "wp_app": ["wp-app-1", "wp-app-2"]}
+
+### ansible-inventory (tfs)
+TF_STATE=tfs/terraform.tfstate ansible-inventory -i tfs/tfs2inv.py --list -y
+(see README fragment)
+
+### ansible ping (tfs)
+TF_STATE=tfs/terraform.tfstate ansible -i tfs/tfs2inv.py -m ping wp_app
+wp-app-1 | SUCCESS => {"ping": "pong"}
+wp-app-2 | SUCCESS => {"ping": "pong"}
