@@ -1,0 +1,73 @@
+stages:   
+    - check
+    - deploy_infra
+    - deploy_app
+    - destroy
+
+.terraform_prepare: &tf_setup 
+    before_script:
+        - cd terraform 
+        - mkdir -p ~/.ssh/
+        - echo "$ID_RSA_PUB" > ~/.ssh/yc.pub
+        - terraform init     
+
+variables:
+    TF_VAR_yc_token: $yc_token
+    TF_VAR_yc_cloud: $yc_cloud
+    TF_VAR_yc_folder: $yc_folder
+    TF_VAR_db_password: $db_password
+    TF_VAR_private_key: "$ID_RSA"
+    TF_VAR_public_key: "$ID_RSA_PUB"
+
+Check terraform file:
+    stage: check
+    image: 
+        name: hashicorp/terraform:1.7.0
+        entrypoint: [""] 
+    <<:  *tf_setup
+    script:
+        - terraform validate
+        - terraform plan
+    only: 
+        - main
+
+Deploy infrustructure:
+    stage: deploy_infra
+    image: 
+        name: hashicorp/terraform:1.7.0
+        entrypoint: [""]
+    <<:  *tf_setup
+    script:
+        - terraform apply --auto-approve
+    when: manual        
+    only: 
+        - main       
+
+Destroy infrustructure:
+    stage: destroy
+    image: 
+        name: hashicorp/terraform:1.7.0
+        entrypoint: [""]
+    <<:  *tf_setup
+    script:        
+        - terraform destroy --auto-approve
+    when: manual
+    only: 
+        - main
+
+Install application:
+    stage: deploy_app
+    image: soaron/ansible:2.9
+    when: manual
+    before_script:
+        - mkdir ~/.ssh/
+        - echo "$ID_RSA" | base64 -d > ~/.ssh/yc
+        - chmod 600 ~/.ssh/yc
+        - cat ~/.ssh/yc
+        - cd ansible
+        - chmod o-w .
+    script:
+        - ansible --version
+        - ansible-playbook playbooks/install.yml
+    only:
+        - main
