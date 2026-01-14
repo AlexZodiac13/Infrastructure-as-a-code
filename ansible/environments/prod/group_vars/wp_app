@@ -1,4 +1,0 @@
-wordpress_db_name: db
-wordpress_db_user: user
-wordpress_db_password: "wordpress123!"
-wordpress_db_host: "rc1a-ir6pk7gu5482rsv9.mdb.yandexcloud.net"
